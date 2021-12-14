@@ -40,35 +40,65 @@ func init() {
 	posMap = make(map[int32]LatLon)
 }
 
+const carPrefix []string= {
+	"NisshinEisei-OBD-",
+	"HinodeEisei-OBD-",
+	"Nikkan-OBD-",
+	"ToyotaEisei-OBD-",
+}
+
+const sensors []string= {
+	"600002",
+	"600004",
+	"600006",
+}
+
+
 // callback for each Supplu
-func suppluCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
+func supplyCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 	// check if demand is match with my supply.
 
 	if sp.GetSupplyName() == "stdin" { // for usual data
 		datastr := sp.GetArgJson()
 		token :=  strings.Split(datastr, ",")
-
-		if strings.HasPrefix(token[0],"NisshinEisei-OBD-") {
-			carnum := token[0][17:]
-			cn , _ := strconv.Atoi(carnum)
-			vehicle_id := int32(10000+ cn)
-
-			lat, err := strconv.ParseFloat(token[3],64)
-			if err != nil {
-				log.Printf("err parse lat [%s] %s",token[3],err.Error())
-				return
+		var vehicle_id int32 = 0
+		for _, prefix := range carPrefix {
+			if strings.HasPrefix(token[0],prefix) {
+				carnum := token[0][len(prefix):]
+				cn , _ := strconv.Atoi(carnum)
+				vehicle_id = int32(10000+ cn)
+				break
 			}
-			lon, err2 := strconv.ParseFloat(token[4],64)
-			if err2 != nil {
-				log.Printf("err parse lon [%s] %s",token[4],err.Error())
-				return
-			}
-			altitude,_ := strconv.ParseFloat(token[5],64)
-			speed,_ := strconv.ParseFloat(token[6],64)
+		}
+		if vehicle_id == 0{ // other cars?
+			for _, sname := range sensors {
+				if token[0] == sname {
+					cn , _ := strconv.Atoi(sname)
+					vehicle_id = int32(cn)
+					break
+				}
+			}	
+		}
+		if vehicle_id == 0 {
+			log.Printf("IngoreData:",datastr)
+			return
+		}
+		lat, err := strconv.ParseFloat(token[3],64)
+		if err != nil || lat < 20.0 || lat > 46.0 {
+			log.Printf("err parse lat [%s] %s",token[3],err.Error())
+			return
+		}
+		lon, err2 := strconv.ParseFloat(token[4],64)
+		if err2 != nil || lon < 122.0 || lon > 154.0 {
+			log.Printf("err parse lon [%s] %s",token[4],err.Error())
+			return
+		}
+		altitude,_ := strconv.ParseFloat(token[5],64)
+		speed,_ := strconv.ParseFloat(token[6],64)
 
-			lastPos, ok := posMap[vehicle_id]
-			var angle, dist float64
-			if ok { // まあだいたいでいいよね？ (北緯35 度の1度あたりの距離で計算)
+		lastPos, ok := posMap[vehicle_id]
+		var angle, dist float64
+		if ok { // まあだいたいでいいよね？ (北緯35 度の1度あたりの距離で計算)
 				dlat := (lastPos.Lat - lat) *  110940.5844 // 110km / degree
 				dlon := (lastPos.Lon - lon) *  91287.7885 // 91km / degree
 				// あまりに移動が小さい場合は、考える。
@@ -78,21 +108,21 @@ func suppluCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 				}else{
 					angle = lastPos.Angle
 				}
-			} else{
-				dist = 0
-				angle = 0
-			}
-			lastPos.Lat = lat
-			lastPos.Lon = lon
-			lastPos.Angle = angle
-			posMap[vehicle_id] = lastPos
+		} else{
+			dist = 0
+			angle = 0
+		}
+		lastPos.Lat = lat
+		lastPos.Lon = lon
+		lastPos.Angle = angle
+		posMap[vehicle_id] = lastPos
 
-			log.Printf("CarNUm:%s, %f, %f, alt:%f spd:%f dst:%f agl %f ", carnum, lat, lon, altitude, speed, dist, angle)
+		log.Printf("CarNUm:%s, %f, %f, alt:%f spd:%f dst:%f agl %f ", carnum, lat, lon, altitude, speed, dist, angle)
 
-			if lat < 30 || lat > 40 || lon < 120 || lon  > 150 {
-				log.Printf("error too big!")
-				return
-			}
+		if lat < 30 || lat > 40 || lon < 120 || lon  > 150 {
+			log.Printf("error too big!")
+			return
+		}
 
 					// Make Protobuf Message from JSON
 			fleet := fleet.Fleet{
@@ -126,7 +156,7 @@ func suppluCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 				}
 
 			}
-		}
+		
 	}
 }
 
@@ -134,7 +164,7 @@ func suppluCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 func subscribeSupply(client *sxutil.SXServiceClient) {
 	// goroutine!
 	ctx := context.Background() //
-	client.SubscribeSupply(ctx, suppluCallback)
+	client.SubscribeSupply(ctx, supplyCallback)
 	// comes here if channel closed
 	log.Printf("Server closed... on conv_packer provider")
 }
