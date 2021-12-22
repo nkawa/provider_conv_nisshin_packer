@@ -85,12 +85,14 @@ func supplyCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 		}
 		lat, err := strconv.ParseFloat(token[3], 64)
 		if err != nil || lat < 20.0 || lat > 46.0 {
-			log.Printf("err parse lat [%s] %s", token[3], err.Error())
+			log.Printf("Err lat %s",token[3])
+		//	log.Printf("err parse lat [%s] %s", token[3], err.Error())
 			return
 		}
 		lon, err2 := strconv.ParseFloat(token[4], 64)
 		if err2 != nil || lon < 122.0 || lon > 154.0 {
-			log.Printf("err parse lon [%s] %s", token[4], err.Error())
+			log.Printf("Err lon %s",token[4])
+//			log.Printf("err parse lon [%s] %s", token[4], err.Error())
 			return
 		}
 		altitude, _ := strconv.ParseFloat(token[5], 64)
