@@ -50,17 +50,30 @@ var carPrefix = []string{
 // for sensor devices
 var sensors = []string{
 	"600002",
+	"600003",	
 	"600004",
 	"600006",
+	"600009",
+	"600010",
+	"600011",	
+	"600012",
+	"600020",
+	"600021",
+	"600022",	
+	"600023",	
+	"600024",
+	"600025",	
 }
 
 // callback for each Supplu
 func supplyCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 	// check if demand is match with my supply.
-
+//	log.Printf("supplyCallback0")
 	if sp.GetSupplyName() == "stdin" { // for usual data
-		datastr := sp.GetArgJson()
+		datastr := sp.GetArgJson() // ここで csv データを取得
 		token := strings.Split(datastr, ",")
+//		log.Printf("get supply tokens %d",len(token))
+
 		var vehicle_id int32 = 0
 		for _, prefix := range carPrefix {
 			if strings.HasPrefix(token[0], prefix) {
@@ -119,7 +132,7 @@ func supplyCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 		lastPos.Angle = angle
 		posMap[vehicle_id] = lastPos
 
-		log.Printf("CarNUm:%6d, %f, %f, alt:%f spd:%f dst:%f agl %f ", vehicle_id, lat, lon, altitude, speed, dist, angle)
+		log.Printf("CarNUm:%6d, %f, %f, alt:%.2f spd:%.2f dst:%.2f agl %.2f ", vehicle_id, lat, lon, altitude, speed, dist, angle)
 
 		if lat < 30 || lat > 40 || lon < 120 || lon > 150 {
 			log.Printf("error too big!")
@@ -203,7 +216,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Can't register node...")
 	}
-	log.Printf("Connecting Server [%s]\n", srv)
 
 	wg := sync.WaitGroup{} // for syncing other goroutines
 	if *local != "" {
@@ -211,6 +223,8 @@ func main() {
 	} else {
 		sxServerAddress = srv
 	}
+	log.Printf("Connecting Server [%s]\n", sxServerAddress)
+	
 	client := sxutil.GrpcConnectServer(sxServerAddress)
 	argJson := fmt.Sprintf("{ConvPacker:recv}")
 	sclient := sxutil.NewSXServiceClient(client, recvChan, argJson)
