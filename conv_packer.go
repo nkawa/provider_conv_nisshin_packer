@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -52,6 +53,7 @@ var sensors = []string{
 	"600002",
 	"600003",	
 	"600004",
+	"600005",	
 	"600006",
 	"600009",
 	"600010",
@@ -65,7 +67,7 @@ var sensors = []string{
 	"600025",	
 }
 
-// callback for each Supplu
+// callback for each Supply
 func supplyCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 	// check if demand is match with my supply.
 //	log.Printf("supplyCallback0")
@@ -132,7 +134,7 @@ func supplyCallback(clt *sxutil.SXServiceClient, sp *pb.Supply) {
 		lastPos.Angle = angle
 		posMap[vehicle_id] = lastPos
 
-		log.Printf("CarNUm:%6d, %f, %f, alt:%.2f spd:%.2f dst:%.2f agl %.2f ", vehicle_id, lat, lon, altitude, speed, dist, angle)
+		log.Printf("CarNum:%6d, %f, %f, alt:%.2f spd:%.2f dst:%.2f agl %.2f ", vehicle_id, lat, lon, altitude, speed, dist, angle)
 
 		if lat < 30 || lat > 40 || lon < 120 || lon > 150 {
 			log.Printf("error too big!")
@@ -182,6 +184,13 @@ func subscribeSupply(client *sxutil.SXServiceClient) {
 	client.SubscribeSupply(ctx, supplyCallback)
 	// comes here if channel closed
 	log.Printf("Server closed... on conv_packer provider")
+
+	// we use supervisord for restart. So, just stop the system!
+
+	sxutil.CallDeferFunctions() // cleanup!
+	log.Printf("Force shutdown because of server close!")
+	os.Exit(1)
+	
 }
 
 func main() {
